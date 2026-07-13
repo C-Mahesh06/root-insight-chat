@@ -9,52 +9,57 @@ import { Wordmark } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import { ArrowLeft, FileText, Loader2, Trash2, Upload, UserCog } from "lucide-react";
-import { ingestDocument, listUsers, setUserRole, listDocuments, deleteDocument } from "@/lib/rag.functions";
+import {
+  createDocument, ingestDocument, listDocuments, deleteDocument,
+  listUsers, toggleAdmin, claimFirstAdmin,
+} from "@/lib/rag.functions";
 import { motion } from "framer-motion";
+import { extractPdfText } from "@/lib/pdf-extract";
 
 export const Route = createFileRoute("/_authenticated/admin")({
-  head: () => ({
-    meta: [
-      { title: "Admin — PlantMD" },
-      { name: "robots", content: "noindex" },
-    ],
-  }),
+  head: () => ({ meta: [{ title: "Admin — PlantMD" }, { name: "robots", content: "noindex" }] }),
   component: Admin,
 });
 
-type DocRow = { id: string; title: string; filename: string; chunk_count: number; created_at: string };
-type UserRow = { id: string; email: string; full_name: string | null; role: "admin" | "user"; created_at: string };
+type DocRow = { id: string; title: string; chunk_count: number; status: string; created_at: string };
+type UserRow = { id: string; email: string | null; full_name: string | null; is_admin: boolean; created_at: string };
 
 function Admin() {
-  const { isAdmin, loading } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const navigate = useNavigate();
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
-    if (!loading && !isAdmin) {
-      toast.error("Admin access required");
-      navigate({ to: "/dashboard" });
-    }
-  }, [isAdmin, loading, navigate]);
-
-  useEffect(() => {
-    if (isAdmin) refresh();
-  }, [isAdmin]);
+    if (!loading && user && isAdmin) refresh();
+  }, [loading, user, isAdmin]);
 
   async function refresh() {
     setRefreshing(true);
     try {
       const [d, u] = await Promise.all([listDocuments(), listUsers()]);
-      setDocs(d.documents);
-      setUsers(u.users);
+      setDocs(d);
+      setUsers(u as UserRow[]);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to load";
-      toast.error(msg);
+      toast.error(e instanceof Error ? e.message : "Failed to load");
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleClaimAdmin() {
+    setClaiming(true);
+    try {
+      await claimFirstAdmin();
+      toast.success("You are now an admin — refreshing…");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Could not claim admin");
+    } finally {
+      setClaiming(false);
     }
   }
 
@@ -63,24 +68,35 @@ function Admin() {
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       toast.error("Please upload a PDF file");
+      e.target.value = "";
       return;
     }
     setUploading(true);
-    const toastId = toast.loading(`Processing ${file.name}…`);
+    const toastId = toast.loading(`Reading ${file.name}…`);
     try {
-      // Upload to storage
-      const path = `${Date.now()}-${file.name}`;
+      toast.loading(`Extracting text from ${file.name}…`, { id: toastId });
+      const text = await extractPdfText(file);
+      if (!text.trim()) throw new Error("No extractable text found in PDF");
+
+      toast.loading(`Uploading ${file.name}…`, { id: toastId });
+      const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
       const { error: upErr } = await supabase.storage.from("documents").upload(path, file);
       if (upErr) throw upErr;
 
-      const { chunks } = await ingestDocument({
-        data: { title: file.name.replace(/\.pdf$/i, ""), filename: file.name, storagePath: path },
+      const { id: documentId } = await createDocument({
+        data: {
+          title: file.name.replace(/\.pdf$/i, ""),
+          storagePath: path,
+          fileSize: file.size,
+        },
       });
-      toast.success(`Indexed ${chunks} chunks from ${file.name}`, { id: toastId });
+
+      toast.loading(`Embedding chunks…`, { id: toastId });
+      const res = await ingestDocument({ data: { documentId, text } });
+      toast.success(`Indexed ${res.inserted} chunks from ${file.name}`, { id: toastId });
       await refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Upload failed";
-      toast.error(msg, { id: toastId });
+      toast.error(e instanceof Error ? e.message : "Upload failed", { id: toastId });
     } finally {
       setUploading(false);
       e.target.value = "";
@@ -93,27 +109,49 @@ function Admin() {
       toast.success("Document deleted");
       await refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Delete failed";
-      toast.error(msg);
+      toast.error(e instanceof Error ? e.message : "Delete failed");
     }
   }
 
-  async function handleRoleChange(userId: string, role: "admin" | "user") {
+  async function handleToggleAdmin(userId: string, currentlyAdmin: boolean) {
     try {
-      await setUserRole({ data: { userId, role } });
+      await toggleAdmin({ data: { userId, makeAdmin: !currentlyAdmin } });
       toast.success("Role updated");
       await refresh();
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to update role";
-      toast.error(msg);
+      toast.error(e instanceof Error ? e.message : "Failed to update role");
     }
   }
 
-  if (loading || !isAdmin) return (
-    <div className="grid min-h-screen place-items-center">
-      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="grid min-h-screen place-items-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-background leaf-bg px-4">
+        <div className="glass-strong max-w-md rounded-3xl p-8 text-center">
+          <h1 className="font-display text-2xl font-semibold">Admin access required</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            You don't have admin access yet. If your project has no admins, you can claim the first admin role.
+          </p>
+          <div className="mt-5 flex flex-col gap-2">
+            <Button onClick={handleClaimAdmin} disabled={claiming} className="rounded-full">
+              {claiming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Claim first admin
+            </Button>
+            <Button variant="outline" className="rounded-full" onClick={() => navigate({ to: "/dashboard" })}>
+              Back to dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background leaf-bg">
@@ -121,7 +159,7 @@ function Admin() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-4">
             <Link to="/dashboard">
-              <Button variant="ghost" size="sm" className="rounded-full gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 rounded-full">
                 <ArrowLeft className="h-4 w-4" /> Back
               </Button>
             </Link>
@@ -133,19 +171,15 @@ function Admin() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-10">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <h1 className="font-display text-4xl font-semibold">Admin panel</h1>
-          <p className="mt-1 text-muted-foreground">Manage knowledge documents and user roles.</p>
+          <p className="mt-1 text-muted-foreground">Manage the knowledge base and user roles.</p>
         </motion.div>
 
         <Tabs defaultValue="docs" className="mt-8">
           <TabsList className="rounded-full bg-muted p-1">
-            <TabsTrigger value="docs" className="rounded-full gap-2"><FileText className="h-4 w-4" /> Documents</TabsTrigger>
-            <TabsTrigger value="users" className="rounded-full gap-2"><UserCog className="h-4 w-4" /> Users</TabsTrigger>
+            <TabsTrigger value="docs" className="gap-2 rounded-full"><FileText className="h-4 w-4" /> Documents</TabsTrigger>
+            <TabsTrigger value="users" className="gap-2 rounded-full"><UserCog className="h-4 w-4" /> Users</TabsTrigger>
           </TabsList>
 
           <TabsContent value="docs" className="mt-6">
@@ -155,20 +189,12 @@ function Admin() {
                   <h2 className="font-display text-xl font-semibold">Knowledge base</h2>
                   <p className="text-sm text-muted-foreground">Upload PDFs to power research-backed answers.</p>
                 </div>
-                <label>
-                  <Input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleUpload}
-                    disabled={uploading}
-                    className="hidden"
-                  />
-                  <Button asChild className="rounded-full gap-2 cursor-pointer" disabled={uploading}>
-                    <span>
-                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                      {uploading ? "Processing…" : "Upload PDF"}
-                    </span>
-                  </Button>
+                <label className="inline-flex">
+                  <input type="file" accept="application/pdf" onChange={handleUpload} disabled={uploading} className="hidden" />
+                  <span className="inline-flex cursor-pointer items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-glow transition-opacity hover:opacity-90 aria-disabled:opacity-50" aria-disabled={uploading}>
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                    {uploading ? "Processing…" : "Upload PDF"}
+                  </span>
                 </label>
               </div>
 
@@ -185,16 +211,11 @@ function Admin() {
                         <div className="min-w-0">
                           <div className="truncate font-medium">{d.title}</div>
                           <div className="truncate text-xs text-muted-foreground">
-                            {d.chunk_count} chunks · {new Date(d.created_at).toLocaleDateString()}
+                            {d.chunk_count} chunks · {d.status} · {new Date(d.created_at).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteDoc(d.id)}
-                        className="rounded-full text-muted-foreground hover:text-destructive"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteDoc(d.id)} className="rounded-full text-muted-foreground hover:text-destructive">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -217,20 +238,21 @@ function Admin() {
                   {users.map((u) => (
                     <div key={u.id} className="flex items-center justify-between gap-3 p-4">
                       <div className="min-w-0">
-                        <div className="truncate font-medium">{u.full_name ?? u.email}</div>
+                        <div className="truncate font-medium">{u.full_name ?? u.email ?? u.id}</div>
                         <div className="truncate text-xs text-muted-foreground">{u.email}</div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          u.role === "admin" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                        }`}>{u.role}</span>
+                          u.is_admin ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        }`}>{u.is_admin ? "admin" : "user"}</span>
                         <Button
                           variant="outline"
                           size="sm"
                           className="rounded-full"
-                          onClick={() => handleRoleChange(u.id, u.role === "admin" ? "user" : "admin")}
+                          disabled={u.id === user?.id}
+                          onClick={() => handleToggleAdmin(u.id, u.is_admin)}
                         >
-                          {u.role === "admin" ? "Demote" : "Promote"}
+                          {u.is_admin ? "Demote" : "Promote"}
                         </Button>
                       </div>
                     </div>
@@ -263,3 +285,6 @@ function EmptyState({ icon: Icon, label }: { icon: React.ComponentType<{ classNa
     </div>
   );
 }
+
+// Suppress unused Input import warning if not otherwise used
+void Input;

@@ -18,14 +18,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, MessageSquare, Trash2, LogOut, Shield, Send, Loader2,
-  Leaf, Sparkles, User as UserIcon, Bot,
+  Plus, MessageSquare, Trash2, LogOut, Shield, Send, Loader2, Leaf, Sparkles, Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import {
-  loadThreads, createThread, deleteThread, updateThread, type Thread, type ChatMessage,
-} from "@/lib/threads";
+import { threadStore, type ChatThread, type ChatMessage } from "@/lib/threads";
 import { chatRag } from "@/lib/rag.functions";
 import { toast } from "sonner";
 
@@ -47,21 +44,29 @@ const STARTERS = [
   { icon: MessageSquare, text: "How do I prevent root rot in seedlings?" },
 ];
 
+function newId() {
+  return typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+}
+
 function Dashboard() {
-  const { user, isAdmin, profile } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [threads, setThreads] = useState<Thread[]>([]);
+  const [threads, setThreads] = useState<ChatThread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!user) return;
-    const t = loadThreads(user.id);
-    setThreads(t);
-    setActiveId(t[0]?.id ?? null);
-  }, [user]);
+    setThreads(threadStore.list());
+    const handler = () => setThreads(threadStore.list());
+    window.addEventListener("plantmd-threads-changed", handler);
+    return () => window.removeEventListener("plantmd-threads-changed", handler);
+  }, []);
+
+  useEffect(() => {
+    if (!activeId && threads.length > 0) setActiveId(threads[0].id);
+  }, [threads, activeId]);
 
   const active = useMemo(() => threads.find((t) => t.id === activeId) ?? null, [threads, activeId]);
 
@@ -70,48 +75,51 @@ function Dashboard() {
   }, [active?.messages.length, sending]);
 
   function handleNew() {
-    if (!user) return;
-    const t = createThread(user.id);
-    setThreads(loadThreads(user.id));
+    const t = threadStore.create();
+    setThreads(threadStore.list());
     setActiveId(t.id);
   }
 
   function handleDelete(id: string) {
-    if (!user) return;
-    deleteThread(user.id, id);
-    const remaining = loadThreads(user.id);
+    threadStore.remove(id);
+    const remaining = threadStore.list();
     setThreads(remaining);
     if (activeId === id) setActiveId(remaining[0]?.id ?? null);
   }
 
   async function handleSend(text?: string) {
-    if (!user) return;
     const content = (text ?? input).trim();
     if (!content || sending) return;
 
     let thread = active;
     if (!thread) {
-      thread = createThread(user.id);
+      thread = threadStore.create();
       setActiveId(thread.id);
     }
 
-    const userMsg: ChatMessage = { role: "user", content, createdAt: Date.now() };
-    const nextMessages = [...thread.messages, userMsg];
-    const title = thread.title === "New chat" ? content.slice(0, 60) : thread.title;
-    updateThread(user.id, thread.id, { messages: nextMessages, title });
-    setThreads(loadThreads(user.id));
+    const userMsg: ChatMessage = { id: newId(), role: "user", content, createdAt: Date.now() };
+    threadStore.addMessage(thread.id, userMsg);
+    const updated = threadStore.get(thread.id);
+    setThreads(threadStore.list());
     setInput("");
     setSending(true);
 
     try {
-      const { reply } = await chatRag({
+      const res = await chatRag({
         data: {
-          messages: nextMessages.map(({ role, content }) => ({ role, content })),
+          threadId: thread.id,
+          messages: (updated?.messages ?? []).map(({ role, content }) => ({ role, content })),
         },
       });
-      const assistantMsg: ChatMessage = { role: "assistant", content: reply, createdAt: Date.now() };
-      updateThread(user.id, thread.id, { messages: [...nextMessages, assistantMsg] });
-      setThreads(loadThreads(user.id));
+      const assistantMsg: ChatMessage = {
+        id: newId(),
+        role: "assistant",
+        content: res.reply,
+        createdAt: Date.now(),
+        sources: res.sources,
+      };
+      threadStore.addMessage(thread.id, assistantMsg);
+      setThreads(threadStore.list());
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to get response";
       toast.error(msg);
@@ -125,15 +133,12 @@ function Dashboard() {
     navigate({ to: "/auth" });
   }
 
-  const initials = (profile?.full_name ?? user?.email ?? "?").slice(0, 2).toUpperCase();
+  const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
   return (
     <div className="flex h-screen bg-background leaf-bg">
-      {/* Sidebar */}
       <aside className="hidden w-72 flex-col border-r border-border/60 bg-sidebar/40 backdrop-blur-xl md:flex">
-        <div className="p-4">
-          <Link to="/"><Wordmark /></Link>
-        </div>
+        <div className="p-4"><Link to="/"><Wordmark /></Link></div>
         <div className="px-3">
           <Button onClick={handleNew} className="w-full justify-start gap-2 rounded-xl">
             <Plus className="h-4 w-4" /> New chat
@@ -173,10 +178,8 @@ function Dashboard() {
                   <AvatarFallback className="bg-primary/15 text-xs text-primary">{initials}</AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{profile?.full_name ?? user?.email}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {isAdmin ? "Admin" : "Grower"}
-                  </div>
+                  <div className="truncate text-sm font-medium">{user?.email}</div>
+                  <div className="truncate text-xs text-muted-foreground">{isAdmin ? "Admin" : "Grower"}</div>
                 </div>
               </button>
             </DropdownMenuTrigger>
@@ -196,13 +199,10 @@ function Dashboard() {
         </div>
       </aside>
 
-      {/* Main */}
       <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-border/60 bg-background/50 px-4 py-3 backdrop-blur md:px-6">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-display text-lg font-semibold">
-              {active?.title ?? "PlantMD"}
-            </h1>
+            <h1 className="truncate font-display text-lg font-semibold">{active?.title ?? "PlantMD"}</h1>
           </div>
           <ThemeToggle />
         </header>
@@ -232,8 +232,8 @@ function Dashboard() {
             ) : (
               <div className="space-y-6">
                 <AnimatePresence initial={false}>
-                  {active.messages.map((m, i) => (
-                    <MessageBubble key={i} message={m} initials={initials} />
+                  {active.messages.map((m: ChatMessage) => (
+                    <MessageBubble key={m.id} message={m} initials={initials} />
                   ))}
                 </AnimatePresence>
                 {sending && (
@@ -298,16 +298,26 @@ function MessageBubble({ message, initials }: { message: ChatMessage; initials: 
         </AvatarFallback>
       </Avatar>
       <div className={`min-w-0 max-w-[85%] rounded-3xl px-4 py-3 text-sm ${
-        isUser
-          ? "rounded-tr-md bg-primary text-primary-foreground"
-          : "rounded-tl-md bg-card shadow-soft"
+        isUser ? "rounded-tr-md bg-primary text-primary-foreground" : "rounded-tl-md bg-card shadow-soft"
       }`}>
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-headings:my-3 prose-ul:my-2">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-          </div>
+          <>
+            <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-headings:my-3 prose-ul:my-2">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+            </div>
+            {message.sources && message.sources.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+                <span className="text-xs text-muted-foreground">Sources:</span>
+                {message.sources.map((s) => (
+                  <span key={s.document_id} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                    {s.title}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </motion.div>
