@@ -28,7 +28,10 @@ def get_qdrant_client() -> QdrantClient:
     global _client
     if _client is None:
         settings = get_settings()
-        _client = QdrantClient(url=settings.QDRANT_URL)
+        _client = QdrantClient(
+            url=settings.QDRANT_URL,
+            api_key=settings.QDRANT_API_KEY if settings.QDRANT_API_KEY else None
+        )
         logger.info("qdrant_connected", url=settings.QDRANT_URL)
     return _client
 
