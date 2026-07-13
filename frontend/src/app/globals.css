@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/* ──────── Design tokens ──────── */
+:root {
+  --color-background: #f8faf5;
+  --color-foreground: #1a2e1a;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a2e1a;
+  --color-primary: #22c55e;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f0fdf4;
+  --color-secondary-foreground: #166534;
+  --color-muted: #f1f5f1;
+  --color-muted-foreground: #6b7c6b;
+  --color-border: #e0e7dd;
+  --color-input: #e0e7dd;
+  --color-destructive: #ef4444;
+  --color-sidebar: #f2f6ef;
+  --font-display: "Fraunces", serif;
+  --font-body: "Inter", sans-serif;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --color-background: #0a1a0a;
+  --color-foreground: #e8f0e8;
+  --color-card: #132013;
+  --color-card-foreground: #e8f0e8;
+  --color-primary: #4ade80;
+  --color-primary-foreground: #052e16;
+  --color-secondary: #0d2b0d;
+  --color-secondary-foreground: #86efac;
+  --color-muted: #162816;
+  --color-muted-foreground: #8fa88f;
+  --color-border: #1e3a1e;
+  --color-input: #1e3a1e;
+  --color-destructive: #f87171;
+  --color-sidebar: #0d1f0d;
+}
+
+/* ──────── Base ──────── */
+* {
+  @apply border-[var(--color-border)];
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ──────── Glassmorphism ──────── */
+.glass {
+  background: color-mix(in srgb, var(--color-card) 65%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+}
+
+.glass-strong {
+  background: color-mix(in srgb, var(--color-card) 85%, transparent);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+/* ──────── Shadows ──────── */
+.shadow-soft {
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--color-foreground) 6%, transparent);
+}
+
+.shadow-glow {
+  box-shadow: 0 0 24px color-mix(in srgb, var(--color-primary) 25%, transparent);
+}
+
+.shadow-glass {
+  box-shadow:
+    0 8px 32px color-mix(in srgb, var(--color-foreground) 8%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+}
+
+/* ──────── Gradient text ──────── */
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #06b6d4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ──────── Leaf background ──────── */
+.leaf-bg {
+  background-image:
+    radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--color-primary) 6%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--color-primary) 4%, transparent) 0%, transparent 40%);
+}
+
+/* ──────── Float animation ──────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ──────── Prose overrides ──────── */
+.prose {
+  --tw-prose-body: var(--color-foreground);
+  --tw-prose-headings: var(--color-foreground);
+  --tw-prose-bold: var(--color-foreground);
+  --tw-prose-links: var(--color-primary);
+}
+
+/* ──────── Scrollbar ──────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+}
