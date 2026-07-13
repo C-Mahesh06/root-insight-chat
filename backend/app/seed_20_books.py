@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.services.embedding import embed_texts
-from app.services.vector_store import upsert_chunks
+from app.services.vector_store import upsert_chunks, ensure_collection
 from app.middleware.auth import get_supabase
 
 async def seed_master_encyclopedia():
@@ -328,6 +328,7 @@ async def seed_master_encyclopedia():
     embeddings = embed_texts(texts)
     
     # 4. Upsert to Qdrant
+    ensure_collection()
     print("Upserting master chunks to Qdrant...")
     upserted = upsert_chunks(doc_id, chunks, embeddings)
     print(f"Success! Master Encyclopedia loaded. Seeded {upserted} pages into Qdrant.")
