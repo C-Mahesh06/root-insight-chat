@@ -275,17 +275,17 @@ export const listDocuments = createServerFn({ method: "GET" })
 
     const { data, error } = await context.supabase
       .from("documents")
-      .select("id, title, filename, storage_path, status, page_count, created_at")
+      .select("id, title, storage_path, status, page_count, created_at")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []).map((d) => ({
       id: d.id as string,
       title: d.title as string,
-      filename: d.filename as string,
       chunk_count: (d.page_count as number | null) ?? 0,
       status: d.status as string,
       created_at: d.created_at as string,
     }));
+
   });
 
 const DeleteDocInput = z.object({ id: z.string().uuid() });
