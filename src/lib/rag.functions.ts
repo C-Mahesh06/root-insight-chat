@@ -231,3 +231,80 @@ export const claimFirstAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ---------- Document management ----------
+
+const CreateDocInput = z.object({
+  title: z.string().min(1),
+  filename: z.string().min(1),
+  storagePath: z.string().min(1),
+});
+
+export const createDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => CreateDocInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: role } = await context.supabase
+      .from("user_roles").select("role")
+      .eq("user_id", context.userId).eq("role", "admin").maybeSingle();
+    if (!role) throw new Error("Forbidden: admin only");
+
+    const { data: row, error } = await context.supabase
+      .from("documents")
+      .insert({
+        title: data.title,
+        filename: data.filename,
+        storage_path: data.storagePath,
+        uploaded_by: context.userId,
+        status: "processing",
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: row.id as string };
+  });
+
+export const listDocuments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: role } = await context.supabase
+      .from("user_roles").select("role")
+      .eq("user_id", context.userId).eq("role", "admin").maybeSingle();
+    if (!role) throw new Error("Forbidden: admin only");
+
+    const { data, error } = await context.supabase
+      .from("documents")
+      .select("id, title, filename, storage_path, status, page_count, created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((d) => ({
+      id: d.id as string,
+      title: d.title as string,
+      filename: d.filename as string,
+      chunk_count: (d.page_count as number | null) ?? 0,
+      status: d.status as string,
+      created_at: d.created_at as string,
+    }));
+  });
+
+const DeleteDocInput = z.object({ id: z.string().uuid() });
+
+export const deleteDocument = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => DeleteDocInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: role } = await context.supabase
+      .from("user_roles").select("role")
+      .eq("user_id", context.userId).eq("role", "admin").maybeSingle();
+    if (!role) throw new Error("Forbidden: admin only");
+
+    const { data: doc } = await context.supabase
+      .from("documents").select("storage_path").eq("id", data.id).maybeSingle();
+    if (doc?.storage_path) {
+      await context.supabase.storage.from("documents").remove([doc.storage_path as string]);
+    }
+    const { error } = await context.supabase.from("documents").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
