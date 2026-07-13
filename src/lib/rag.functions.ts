@@ -236,8 +236,8 @@ export const claimFirstAdmin = createServerFn({ method: "POST" })
 
 const CreateDocInput = z.object({
   title: z.string().min(1),
-  filename: z.string().min(1),
   storagePath: z.string().min(1),
+  fileSize: z.number().optional(),
 });
 
 export const createDocument = createServerFn({ method: "POST" })
@@ -253,8 +253,8 @@ export const createDocument = createServerFn({ method: "POST" })
       .from("documents")
       .insert({
         title: data.title,
-        filename: data.filename,
         storage_path: data.storagePath,
+        file_size: data.fileSize ?? null,
         uploaded_by: context.userId,
         status: "processing",
       })
@@ -263,6 +263,7 @@ export const createDocument = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { id: row.id as string };
   });
+
 
 export const listDocuments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
