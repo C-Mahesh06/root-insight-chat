@@ -13,20 +13,24 @@ logger = get_logger("reranker")
 _reranker: CrossEncoder | None = None
 
 
-def load_reranker() -> CrossEncoder:
+def load_reranker() -> CrossEncoder | None:
     """Load the cross-encoder reranker model (called once at startup)."""
     global _reranker
     if _reranker is not None:
         return _reranker
 
     settings = get_settings()
+    if not settings.RERANKER_MODEL:
+        logger.info("reranker_disabled")
+        return None
+
     logger.info("loading_reranker", model=settings.RERANKER_MODEL)
     _reranker = CrossEncoder(settings.RERANKER_MODEL)
     logger.info("reranker_loaded")
     return _reranker
 
 
-def get_reranker() -> CrossEncoder:
+def get_reranker() -> CrossEncoder | None:
     """Get the loaded reranker model."""
     if _reranker is None:
         return load_reranker()
@@ -55,7 +59,19 @@ def rerank_chunks(
     if not chunks:
         return []
 
+    settings = get_settings()
+    if not settings.RERANKER_MODEL:
+        logger.info("reranking_skipped", input_count=len(chunks))
+        # Fallback: assign similarity score as rerank_score
+        for chunk in chunks:
+            chunk["rerank_score"] = chunk.get("similarity", 0.0)
+        return chunks[:top_k]
+
     reranker = get_reranker()
+    if reranker is None:
+        for chunk in chunks:
+            chunk["rerank_score"] = chunk.get("similarity", 0.0)
+        return chunks[:top_k]
 
     # Create (query, chunk_content) pairs
     pairs = [(query, chunk["content"]) for chunk in chunks]

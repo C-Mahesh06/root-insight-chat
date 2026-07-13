@@ -35,11 +35,11 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "plant_disease_docs"
 
     # --- Embedding ---
-    EMBEDDING_MODEL: str = "BAAI/bge-large-en-v1.5"
-    EMBEDDING_DIMENSION: int = 1024
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_DIMENSION: int = 384
 
     # --- Reranker ---
-    RERANKER_MODEL: str = "BAAI/bge-reranker-base"
+    RERANKER_MODEL: str = ""
     RERANK_TOP_K: int = 5
 
     # --- RAG ---
