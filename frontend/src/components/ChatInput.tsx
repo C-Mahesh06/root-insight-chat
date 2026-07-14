@@ -177,7 +177,7 @@ export function ChatInput({
               >
                 <Plus className="h-4 w-4" />
               </button>
-              <span className="text-[10px] font-medium text-[var(--color-muted-foreground)]">
+              <span className="text-[10px] font-medium text-[var(--color-muted-foreground)] hidden sm:inline">
                 Attach images for vision diagnosis
               </span>
             </div>
@@ -186,7 +186,7 @@ export function ChatInput({
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="h-8 px-2 bg-[var(--color-card)] hover:bg-[var(--color-muted)] border border-[var(--color-border)]/50 rounded-lg text-[11px] font-semibold text-[var(--color-foreground)] outline-none transition-all cursor-pointer appearance-none pr-6 relative"
+                className="h-8 px-2 bg-[var(--color-card)] hover:bg-[var(--color-muted)] border border-[var(--color-border)]/50 rounded-lg text-[11px] font-semibold text-[var(--color-foreground)] outline-none transition-all cursor-pointer appearance-none pr-6 relative max-w-[105px] sm:max-w-none truncate"
                 style={{
                   backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")`,
                   backgroundRepeat: "no-repeat",
@@ -203,7 +203,7 @@ export function ChatInput({
               <button
                 onClick={handleSend}
                 disabled={(!input.trim() && attachments.length === 0) || disabled}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] active:scale-95 transition-all disabled:opacity-40 cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] active:scale-95 transition-all disabled:opacity-40 cursor-pointer animate-fade-in"
                 aria-label="Send"
               >
                 {disabled ? (

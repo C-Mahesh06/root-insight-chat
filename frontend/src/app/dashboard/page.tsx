@@ -160,7 +160,7 @@ export default function DashboardPage() {
               </button>
             )}
 
-            <div className="relative">
+            <div className="relative hidden md:block">
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
@@ -216,7 +216,7 @@ export default function DashboardPage() {
                     selectedModel={selectedModel}
                     setSelectedModel={setSelectedModel}
                   />
-                  <div className="flex items-center justify-between text-[10px] text-[var(--color-muted-foreground)]/60 px-2">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-1 text-[10px] text-[var(--color-muted-foreground)]/60 px-2 text-center sm:text-left">
                     <span>✨ Select model directly inside the chat bar</span>
                     <span className="font-semibold text-[var(--color-primary)]/70">Dev by Mahesh</span>
                   </div>
@@ -317,9 +317,9 @@ export default function DashboardPage() {
                 selectedModel={selectedModel}
                 setSelectedModel={setSelectedModel}
               />
-              <div className="flex items-center justify-between mt-2 text-[10px] text-[var(--color-muted-foreground)]/60 px-1">
-                <span>AI-generated answers from the knowledge base. Verify with local extensions for production crops.</span>
-                <span className="font-semibold text-[var(--color-primary)]/70 shrink-0 ml-4">Dev by Mahesh</span>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-1 mt-2 text-[10px] text-[var(--color-muted-foreground)]/60 px-1 text-center sm:text-left">
+                <span>AI-generated answers. Verify with local extensions for production crops.</span>
+                <span className="font-semibold text-[var(--color-primary)]/70 shrink-0">Dev by Mahesh</span>
               </div>
             </div>
           </div>

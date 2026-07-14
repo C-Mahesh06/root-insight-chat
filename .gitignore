@@ -43,3 +43,5 @@ frontend/.env.local
 /uploads/
 *.db
 backend/*.db
+.vercel
+.env*.local

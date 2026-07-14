@@ -335,12 +335,12 @@ export function ChatMessage({ message, userInitials }: ChatMessageProps) {
                       {isSpeaking ? (
                         <>
                           <VolumeX className="h-3.5 w-3.5 text-[var(--color-primary)]" />
-                          <span>Stop</span>
+                          <span className="hidden sm:inline">Stop</span>
                         </>
                       ) : (
                         <>
                           <Volume2 className="h-3.5 w-3.5" />
-                          <span>Speak</span>
+                          <span className="hidden sm:inline">Speak</span>
                         </>
                       )}
                     </button>
@@ -353,12 +353,12 @@ export function ChatMessage({ message, userInitials }: ChatMessageProps) {
                       {copied ? (
                         <>
                           <Check className="h-3.5 w-3.5 text-emerald-500" />
-                          <span className="text-emerald-500">Copied</span>
+                          <span className="text-emerald-500 hidden sm:inline">Copied</span>
                         </>
                       ) : (
                         <>
                           <Copy className="h-3.5 w-3.5" />
-                          <span>Copy</span>
+                          <span className="hidden sm:inline">Copy</span>
                         </>
                       )}
                     </button>
@@ -369,7 +369,8 @@ export function ChatMessage({ message, userInitials }: ChatMessageProps) {
                       title="Export as PDF"
                     >
                       <FileText className="h-3.5 w-3.5" />
-                      <span>Export PDF</span>
+                      <span className="hidden sm:inline">Export PDF</span>
+                      <span className="sm:hidden">PDF</span>
                     </button>
                   </div>
                 )}
