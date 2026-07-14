@@ -1,6 +1,9 @@
 """
-Cross-encoder reranking service using BAAI/bge-reranker-base.
-Reranks retrieved chunks by relevance to the query.
+Cross-encoder reranking service.
+Model: cross-encoder/ms-marco-MiniLM-L-6-v2 (best free reranker, 2026)
+- Dramatically improves precision over bi-encoder retrieval
+- ~22M params — fast on CPU, ~50ms for 15 pairs
+- Loads once at startup
 """
 
 from sentence_transformers import CrossEncoder
@@ -14,7 +17,7 @@ _reranker: CrossEncoder | None = None
 
 
 def load_reranker() -> CrossEncoder | None:
-    """Load the cross-encoder reranker model (called once at startup)."""
+    """Load the cross-encoder reranker model once at startup."""
     global _reranker
     if _reranker is not None:
         return _reranker
@@ -25,13 +28,13 @@ def load_reranker() -> CrossEncoder | None:
         return None
 
     logger.info("loading_reranker", model=settings.RERANKER_MODEL)
-    _reranker = CrossEncoder(settings.RERANKER_MODEL)
-    logger.info("reranker_loaded")
+    _reranker = CrossEncoder(settings.RERANKER_MODEL, max_length=512)
+    logger.info("reranker_loaded", model=settings.RERANKER_MODEL)
     return _reranker
 
 
 def get_reranker() -> CrossEncoder | None:
-    """Get the loaded reranker model."""
+    """Get the loaded reranker (lazy-load if needed)."""
     if _reranker is None:
         return load_reranker()
     return _reranker
@@ -41,53 +44,63 @@ def rerank_chunks(
     query: str,
     chunks: list[dict],
     top_k: int = 5,
+    score_threshold: float = -5.0,
 ) -> list[dict]:
     """
-    Rerank retrieved chunks using a cross-encoder.
+    Rerank retrieved chunks with a cross-encoder.
 
-    The cross-encoder scores each (query, chunk) pair directly,
-    providing more accurate relevance scores than bi-encoder similarity.
+    Cross-encoders consider the full (query, passage) pair jointly —
+    far more accurate than bi-encoder cosine similarity.
+
+    Steps:
+        1. Build (query, chunk) pairs
+        2. Score all pairs in a single batch
+        3. Filter by score_threshold to drop clearly irrelevant chunks
+        4. Return top_k sorted by score
 
     Args:
-        query: The user's search query.
-        chunks: Retrieved chunks from vector search.
-        top_k: Number of top chunks to return after reranking.
+        query: The condensed search query.
+        chunks: Retrieved chunks from hybrid search.
+        top_k: Number of top chunks to return.
+        score_threshold: Minimum raw logit score to retain a chunk.
 
     Returns:
-        Top-k chunks sorted by reranker score, with added 'rerank_score'.
+        Top-k chunks with added 'rerank_score' field.
     """
     if not chunks:
         return []
 
     settings = get_settings()
-    if not settings.RERANKER_MODEL:
-        logger.info("reranking_skipped", input_count=len(chunks))
-        # Fallback: assign similarity score as rerank_score
-        for chunk in chunks:
-            chunk["rerank_score"] = chunk.get("similarity", 0.0)
-        return chunks[:top_k]
 
     reranker = get_reranker()
     if reranker is None:
+        # Fallback: sort by vector similarity
         for chunk in chunks:
             chunk["rerank_score"] = chunk.get("similarity", 0.0)
-        return chunks[:top_k]
+        chunks_sorted = sorted(chunks, key=lambda c: c["rerank_score"], reverse=True)
+        logger.info("reranking_skipped_fallback", returned=min(top_k, len(chunks_sorted)))
+        return chunks_sorted[:top_k]
 
-    # Create (query, chunk_content) pairs
-    pairs = [(query, chunk["content"]) for chunk in chunks]
-    scores = reranker.predict(pairs)
+    # Truncate chunk content to avoid slow scoring on very long texts
+    pairs = [(query, chunk["content"][:512]) for chunk in chunks]
+    scores = reranker.predict(pairs, show_progress_bar=False)
 
-    # Attach scores and sort
     for chunk, score in zip(chunks, scores):
         chunk["rerank_score"] = float(score)
 
-    reranked = sorted(chunks, key=lambda c: c["rerank_score"], reverse=True)
+    # Filter by threshold then sort
+    filtered = [c for c in chunks if c["rerank_score"] >= score_threshold]
+    reranked = sorted(filtered, key=lambda c: c["rerank_score"], reverse=True)
+
+    result = reranked[:top_k]
 
     logger.info(
         "reranking_done",
         input_count=len(chunks),
-        output_count=min(top_k, len(reranked)),
-        top_score=reranked[0]["rerank_score"] if reranked else 0,
+        filtered_count=len(filtered),
+        output_count=len(result),
+        top_score=round(result[0]["rerank_score"], 3) if result else 0,
+        bottom_score=round(result[-1]["rerank_score"], 3) if result else 0,
     )
 
-    return reranked[:top_k]
+    return result

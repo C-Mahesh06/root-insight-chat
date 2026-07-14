@@ -83,7 +83,9 @@ export async function apiUpload<T = unknown>(
  */
 export async function apiChatStream(
   message: string,
-  conversationId?: string | null
+  conversationId?: string | null,
+  images?: string[] | null,
+  model?: string | null
 ): Promise<ReadableStream<{ type: string; data: unknown }>> {
   const headers = await getAuthHeaders();
 
@@ -93,6 +95,8 @@ export async function apiChatStream(
     body: JSON.stringify({
       message,
       conversation_id: conversationId || null,
+      images: images || null,
+      model: model || null,
     }),
   });
 

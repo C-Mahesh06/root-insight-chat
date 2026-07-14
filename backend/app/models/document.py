@@ -30,3 +30,9 @@ class DocumentDeleteResponse(BaseModel):
     """Response after deleting a document."""
     ok: bool = True
     id: str
+
+
+class DocumentUploadUrlRequest(BaseModel):
+    """Request payload to upload/ingest a URL."""
+    url: str = Field(..., description="The URL of the webpage or PDF file to ingest")
+

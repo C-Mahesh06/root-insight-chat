@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     # --- App ---
     APP_NAME: str = "PlantMD API"
-    APP_VERSION: str = "1.0.0"
+    APP_VERSION: str = "2.0.0"
     DEBUG: bool = False
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
@@ -24,9 +24,9 @@ class Settings(BaseSettings):
 
     # --- OpenAI / LLM ---
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o"
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    LLM_TEMPERATURE: float = 0.3
+    OPENAI_MODEL: str = "llama-3.3-70b-versatile"
+    OPENAI_BASE_URL: str = "https://api.groq.com/openai/v1"
+    LLM_TEMPERATURE: float = 0.2
     LLM_MAX_TOKENS: int = 2048
 
     # --- Qdrant ---
@@ -35,21 +35,42 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "plant_disease_docs"
 
     # --- Embedding ---
-    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
-    EMBEDDING_DIMENSION: int = 384
+    # BAAI/bge-large-en-v1.5 = best free open-source embedding model
+    EMBEDDING_MODEL: str = "BAAI/bge-large-en-v1.5"
+    EMBEDDING_DIMENSION: int = 1024
 
     # --- Reranker ---
-    RERANKER_MODEL: str = ""
+    # cross-encoder/ms-marco-MiniLM-L-6-v2 = best free cross-encoder
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RERANK_TOP_K: int = 5
 
-    # --- RAG ---
-    RAG_SEARCH_TOP_K: int = 10
-    RAG_SIMILARITY_THRESHOLD: float = 0.35
-    CHUNK_SIZE: int = 1000
-    CHUNK_OVERLAP: int = 200
+    # --- RAG Retrieval ---
+    RAG_SEARCH_TOP_K: int = 15        # Dense retrieval candidates
+    RAG_BM25_TOP_K: int = 10          # BM25 sparse candidates
+    RAG_SIMILARITY_THRESHOLD: float = 0.30
+    RAG_BM25_WEIGHT: float = 0.3      # BM25 weight in hybrid fusion (0.3)
+    RAG_DENSE_WEIGHT: float = 0.7     # Dense weight in hybrid fusion (0.7)
+
+    # --- Chunking ---
+    CHUNK_SIZE: int = 800             # Smaller = more precise retrieval
+    CHUNK_OVERLAP: int = 150
+
+    # --- Contextual Compression ---
+    COMPRESSION_ENABLED: bool = True   # Strip irrelevant sentences from chunks
+    COMPRESSION_MIN_CHARS: int = 80    # Keep sentences with ≥ N chars matching keywords
+
+    # --- Self-Reflection ---
+    SELF_REFLECTION_ENABLED: bool = True  # Validate answer quality before returning
+    SELF_REFLECTION_MIN_CONTEXT_CHUNKS: int = 2  # Only reflect when context is thin
+
+    # --- Semantic Cache ---
+    CACHE_ENABLED: bool = True
+    CACHE_DIR: str = "/tmp/plantmd_cache"
+    CACHE_SIMILARITY_THRESHOLD: float = 0.92  # Cosine sim to count as cache hit
+    CACHE_MAX_SIZE_MB: int = 200
 
     # --- Conversation ---
-    MAX_CONVERSATION_HISTORY: int = 10
+    MAX_CONVERSATION_HISTORY: int = 12
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

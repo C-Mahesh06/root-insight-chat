@@ -78,6 +78,29 @@ def create_app() -> FastAPI:
             content={"detail": "Internal server error. Please try again."},
         )
 
+    # Metrics HTTP Middleware
+    @app.middleware("http")
+    async def metrics_middleware(request: Request, call_next):
+        import time
+        from app.services.metrics import track_api_request
+        
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+        
+        if request.url.path != "/metrics":
+            track_api_request(request.method, request.url.path, response.status_code, duration)
+            
+        return response
+
+    # Metrics endpoint
+    from fastapi import Response
+    from app.services.metrics import get_prometheus_metrics
+
+    @app.get("/metrics")
+    async def metrics():
+        return Response(content=get_prometheus_metrics(), media_type="text/plain")
+
     # Register routes
     app.include_router(health.router)
     app.include_router(chat.router)

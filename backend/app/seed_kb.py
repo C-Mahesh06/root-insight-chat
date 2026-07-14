@@ -15,7 +15,7 @@ async def seed():
     user_id = "b1522832-2926-4188-a67e-55a084996c60" # Mahesh's user ID
     supabase = get_supabase()
     
-    # 1. Create document in Supabase
+    # 1. Create/Retrieve document in Supabase
     doc_data = {
         "title": "PlantMD Tomato & Pepper Disease Reference Guide",
         "storage_path": "uploads/tomato_pepper_guide.pdf",
@@ -25,13 +25,17 @@ async def seed():
         "status": "ready"
     }
     
-    doc_res = supabase.table("documents").insert(doc_data).execute()
-    if not doc_res.data:
-        print("Failed to insert document metadata")
-        return
-        
-    doc_id = doc_res.data[0]["id"]
-    print(f"Created document metadata with ID: {doc_id}")
+    existing = supabase.table("documents").select("id").eq("title", doc_data["title"]).execute()
+    if existing.data:
+        doc_id = existing.data[0]["id"]
+        print(f"Using existing document metadata with ID: {doc_id}")
+    else:
+        doc_res = supabase.table("documents").insert(doc_data).execute()
+        if not doc_res.data:
+            print("Failed to insert document metadata")
+            return
+        doc_id = doc_res.data[0]["id"]
+        print(f"Created document metadata with ID: {doc_id}")
     
     # 2. Define our high-quality agricultural chunks
     chunks = [

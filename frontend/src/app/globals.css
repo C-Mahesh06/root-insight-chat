@@ -1,45 +1,74 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
-/* ──────── Design tokens ──────── */
+/* ═══════════════════════════════════════════════════
+   PlantMD Design System — Industry-Grade Tokens
+   ═══════════════════════════════════════════════════ */
+
 :root {
-  --color-background: #f8faf5;
-  --color-foreground: #1a2e1a;
+  /* Core palette */
+  --color-background: #fafbf8;
+  --color-foreground: #111c11;
   --color-card: #ffffff;
-  --color-card-foreground: #1a2e1a;
-  --color-primary: #22c55e;
+  --color-card-foreground: #111c11;
+
+  /* Brand */
+  --color-primary: #16a34a;
   --color-primary-foreground: #ffffff;
+  --color-primary-hover: #15803d;
+  --color-accent: #059669;
+
+  /* Surfaces */
   --color-secondary: #f0fdf4;
-  --color-secondary-foreground: #166534;
-  --color-muted: #f1f5f1;
-  --color-muted-foreground: #6b7c6b;
-  --color-border: #e0e7dd;
-  --color-input: #e0e7dd;
-  --color-destructive: #ef4444;
-  --color-sidebar: #f2f6ef;
+  --color-secondary-foreground: #14532d;
+  --color-muted: #f1f5f0;
+  --color-muted-foreground: #64736c;
+  --color-border: #dce5d9;
+  --color-input: #dce5d9;
+  --color-sidebar: #f4f7f2;
+
+  /* Status */
+  --color-destructive: #dc2626;
+
+  /* Typography */
   --font-display: "Fraunces", serif;
   --font-body: "Inter", sans-serif;
-  --radius: 0.75rem;
+
+  /* Spacing & Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 }
 
 .dark {
-  --color-background: #0a1a0a;
-  --color-foreground: #e8f0e8;
-  --color-card: #132013;
-  --color-card-foreground: #e8f0e8;
-  --color-primary: #4ade80;
-  --color-primary-foreground: #052e16;
-  --color-secondary: #0d2b0d;
-  --color-secondary-foreground: #86efac;
-  --color-muted: #162816;
-  --color-muted-foreground: #8fa88f;
-  --color-border: #1e3a1e;
-  --color-input: #1e3a1e;
-  --color-destructive: #f87171;
-  --color-sidebar: #0d1f0d;
+  --color-background: #090f09;
+  --color-foreground: #e4ece4;
+  --color-card: #111a11;
+  --color-card-foreground: #e4ece4;
+
+  --color-primary: #34d399;
+  --color-primary-foreground: #022c22;
+  --color-primary-hover: #2dd48a;
+  --color-accent: #10b981;
+
+  --color-secondary: #0a1f0a;
+  --color-secondary-foreground: #a7f3d0;
+  --color-muted: #141e14;
+  --color-muted-foreground: #7e9a87;
+  --color-border: #1c2e1c;
+  --color-input: #1c2e1c;
+  --color-sidebar: #0b140b;
+
+  --color-destructive: #ef4444;
 }
 
-/* ──────── Base ──────── */
+/* ═══════════════════════════════════════════════════
+   Reset & Base
+   ═══════════════════════════════════════════════════ */
+
 * {
   @apply border-[var(--color-border)];
 }
@@ -49,64 +78,154 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  letter-spacing: -0.011em;
 }
 
-/* ──────── Glassmorphism ──────── */
+/* ═══════════════════════════════════════════════════
+   Glass Morphism System
+   ═══════════════════════════════════════════════════ */
+
 .glass {
-  background: color-mix(in srgb, var(--color-card) 65%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: color-mix(in srgb, var(--color-card) 60%, transparent);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
 }
 
 .glass-strong {
-  background: color-mix(in srgb, var(--color-card) 85%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  background: color-mix(in srgb, var(--color-card) 82%, transparent);
+  backdrop-filter: blur(32px) saturate(1.8);
+  -webkit-backdrop-filter: blur(32px) saturate(1.8);
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
 }
 
-/* ──────── Shadows ──────── */
+/* ═══════════════════════════════════════════════════
+   Elevation / Shadow System (5 levels)
+   ═══════════════════════════════════════════════════ */
+
+.shadow-xs {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+}
+
 .shadow-soft {
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--color-foreground) 6%, transparent);
+  box-shadow:
+    0 1px 3px 0 rgb(0 0 0 / 0.06),
+    0 1px 2px -1px rgb(0 0 0 / 0.06);
+}
+
+.shadow-md {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.07),
+    0 2px 4px -2px rgb(0 0 0 / 0.05);
 }
 
 .shadow-glow {
-  box-shadow: 0 0 24px color-mix(in srgb, var(--color-primary) 25%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-primary) 15%, transparent),
+    0 0 20px -4px color-mix(in srgb, var(--color-primary) 20%, transparent);
 }
 
 .shadow-glass {
   box-shadow:
-    0 8px 32px color-mix(in srgb, var(--color-foreground) 8%, transparent),
-    inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+    0 8px 32px -8px rgb(0 0 0 / 0.1),
+    inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
 }
 
-/* ──────── Gradient text ──────── */
+/* ═══════════════════════════════════════════════════
+   Gradient Utilities
+   ═══════════════════════════════════════════════════ */
+
 .gradient-text {
-  background: linear-gradient(135deg, var(--color-primary) 0%, #06b6d4 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, #0ea5e9 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* ──────── Leaf background ──────── */
 .leaf-bg {
   background-image:
-    radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--color-primary) 6%, transparent) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--color-primary) 4%, transparent) 0%, transparent 40%);
+    radial-gradient(ellipse at 15% 50%, color-mix(in srgb, var(--color-primary) 5%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 15%, color-mix(in srgb, var(--color-accent) 4%, transparent) 0%, transparent 45%),
+    radial-gradient(ellipse at 50% 90%, color-mix(in srgb, var(--color-primary) 3%, transparent) 0%, transparent 40%);
 }
 
-/* ──────── Float animation ──────── */
+.premium-bg-gradient {
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 0%, color-mix(in srgb, var(--color-primary) 6%, transparent), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, color-mix(in srgb, var(--color-accent) 4%, transparent), transparent 50%),
+    var(--color-background);
+}
+
+.dark .premium-bg-gradient {
+  background:
+    radial-gradient(ellipse 100% 100% at 50% 0%, color-mix(in srgb, var(--color-primary) 8%, transparent), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 80% 100%, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 50%),
+    var(--color-background);
+}
+
+/* ═══════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════ */
+
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-12px); }
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
 }
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
 
-/* ──────── Prose overrides ──────── */
+.animate-message {
+  animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out both;
+}
+
+/* ═══════════════════════════════════════════════════
+   Chat Input Container (morphing transition)
+   ═══════════════════════════════════════════════════ */
+
+.chat-input-container {
+  transition:
+    height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    padding 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: height, padding, border-radius;
+}
+
+/* ═══════════════════════════════════════════════════
+   Typography / Prose
+   ═══════════════════════════════════════════════════ */
+
 .prose {
   --tw-prose-body: var(--color-foreground);
   --tw-prose-headings: var(--color-foreground);
@@ -114,9 +233,17 @@ body {
   --tw-prose-links: var(--color-primary);
 }
 
-/* ──────── Scrollbar ──────── */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* ═══════════════════════════════════════════════════
+   Scrollbar (Minimal, macOS-like)
+   ═══════════════════════════════════════════════════ */
+
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -124,10 +251,19 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-muted);
-  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-foreground) 12%, transparent);
+  border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-muted-foreground);
+  background: color-mix(in srgb, var(--color-foreground) 22%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════
+   Selection
+   ═══════════════════════════════════════════════════ */
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 25%, transparent);
+  color: var(--color-foreground);
 }

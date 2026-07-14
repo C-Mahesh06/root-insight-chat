@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, MessageSquare, Trash2, LogOut, Shield, Send, Loader2, Leaf, Sparkles, Bot } from "lucide-react";
+import { LogOut, Shield, Loader2, Leaf, Sparkles, Bot, Menu, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { ChatSidebar } from "@/components/ChatSidebar";
@@ -26,6 +26,8 @@ export default function DashboardPage() {
     conversationId,
     conversations,
     isStreaming,
+    selectedModel,
+    setSelectedModel,
     sendMessage,
     loadConversations,
     loadConversation,
@@ -34,6 +36,7 @@ export default function DashboardPage() {
   } = useChat();
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const [selectedCrop, setSelectedCrop] = useState("");
@@ -76,7 +79,6 @@ export default function DashboardPage() {
   // Check admin role
   useEffect(() => {
     if (user) {
-      // Fetch user role from public schema
       import("@/lib/supabase").then(({ supabase }) => {
         supabase
           .from("user_roles")
@@ -108,47 +110,79 @@ export default function DashboardPage() {
   if (authLoading || !user) {
     return (
       <div className="grid min-h-screen place-items-center bg-[var(--color-background)]">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-primary)]" />
+        <div className="flex flex-col items-center gap-3 animate-fade-in">
+          <Loader2 className="h-7 w-7 animate-spin text-[var(--color-primary)]" />
+          <span className="text-[13px] font-medium text-[var(--color-muted-foreground)]">Loading...</span>
+        </div>
       </div>
     );
   }
 
   const userInitials = user.email ? user.email.slice(0, 2).toUpperCase() : "US";
+  const currentTitle = conversations.find((c) => c.id === conversationId)?.title;
 
   return (
-    <div className="flex h-screen bg-[var(--color-background)] leaf-bg overflow-hidden">
+    <div className="flex h-screen bg-[var(--color-background)] overflow-hidden">
       <ChatSidebar
         conversations={conversations}
         activeId={conversationId}
         onSelect={loadConversation}
         onNew={startNewChat}
         onDelete={deleteConversation}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        userEmail={user.email}
       />
 
-      <main className="flex min-w-0 flex-1 flex-col h-full">
+      <main className="relative flex min-w-0 flex-1 flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="flex items-center justify-between border-b border-[var(--color-border)]/60 bg-[var(--color-background)]/50 px-4 py-3 backdrop-blur md:px-6">
+        <header className="relative z-20 flex items-center justify-between border-b border-[var(--color-border)]/50 bg-[var(--color-background)]/80 backdrop-blur-xl px-4 py-3 md:px-6">
           <div className="flex items-center gap-3">
-            <div className="md:hidden">
-              <Wordmark />
-            </div>
-            <h1 className="hidden md:block truncate font-display text-lg font-semibold">
-              {conversations.find((c) => c.id === conversationId)?.title || "PlantMD Chat"}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)]/60 text-[var(--color-foreground)] hover:bg-[var(--color-muted)] transition-colors cursor-pointer"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-[18px] w-[18px]" />
+            </button>
+            <div className="md:hidden"><Wordmark size="sm" /></div>
+            <h1 className="hidden md:block truncate text-[14px] font-semibold text-[var(--color-foreground)]">
+              {currentTitle || "PlantMD"}
             </h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isAdmin && (
               <button
                 onClick={() => router.push("/admin")}
-                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium transition-colors hover:bg-[var(--color-muted)]"
+                className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-muted)] px-3 py-1.5 text-[11px] font-semibold transition-colors text-[var(--color-foreground)] cursor-pointer"
               >
-                <Shield className="h-3.5 w-3.5" /> Admin Panel
+                <Shield className="h-3.5 w-3.5 text-[var(--color-primary)]" /> Admin
               </button>
             )}
-            <ThemeToggle />
+
+            <div className="relative">
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="h-9 px-3 bg-[var(--color-card)] hover:bg-[var(--color-muted)] border border-[var(--color-border)]/60 rounded-lg text-[12px] font-semibold text-[var(--color-foreground)] outline-none transition-all cursor-pointer appearance-none pr-8 select-custom"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>")`,
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "right 8px center",
+                  backgroundSize: "14px",
+                }}
+              >
+                <option value="my-own-model">✨ Aether AI (Custom)</option>
+                <option value="chatgpt">💬 ChatGPT</option>
+                <option value="gemini">♊ Gemini</option>
+                <option value="llama">🦙 Llama</option>
+              </select>
+            </div>
+
+            <ThemeToggle className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)]/60 text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-colors cursor-pointer" />
             <button
               onClick={signOut}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-destructive)]"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-border)]/60 text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-destructive)] transition-colors cursor-pointer"
               aria-label="Sign out"
             >
               <LogOut className="h-4 w-4" />
@@ -157,94 +191,105 @@ export default function DashboardPage() {
         </header>
 
         {/* Message Area */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 md:px-10">
-          <div className="mx-auto max-w-3xl">
+        <div ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-4 py-6 md:px-8">
+          <div className="mx-auto max-w-[720px] h-full flex flex-col">
             {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="grid h-16 w-16 place-items-center rounded-3xl bg-[var(--color-primary)]/10 text-[var(--color-primary)] shadow-glow animate-pulse">
-                  <Leaf className="h-8 w-8" />
-                </div>
-                <h2 className="mt-5 font-display text-3xl font-semibold">
-                  PlantMD Diagnostic Portal
-                </h2>
-                <p className="mt-2 text-[var(--color-muted-foreground)] max-w-md">
-                  Choose a crop and select the symptoms you are seeing to get an instant AI-powered diagnosis.
-                </p>
-
-                {/* Wizard Card */}
-                <div className="mt-8 w-full max-w-xl p-6 border border-[var(--color-border)]/65 bg-[var(--color-card)]/90 backdrop-blur-md rounded-2xl shadow-soft">
-                  <h3 className="text-sm font-semibold text-[var(--color-foreground)] text-left mb-4 flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-[var(--color-primary)]" />
-                    Guided Diagnostic Wizard
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Crop Selection */}
-                    <div className="text-left">
-                      <label className="block text-xs font-semibold text-[var(--color-muted-foreground)] mb-1.5">
-                        Select Plant/Crop
-                      </label>
-                      <select
-                        value={selectedCrop}
-                        onChange={(e) => setSelectedCrop(e.target.value)}
-                        className="w-full h-11 px-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 transition-all cursor-pointer"
-                      >
-                        <option value="">-- Choose Crop --</option>
-                        {CROPS.map((c) => (
-                          <option key={c.value} value={c.value}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Symptom Selection */}
-                    <div className="text-left">
-                      <label className="block text-xs font-semibold text-[var(--color-muted-foreground)] mb-1.5">
-                        Select Symptom
-                      </label>
-                      <select
-                        value={selectedSymptom}
-                        onChange={(e) => setSelectedSymptom(e.target.value)}
-                        className="w-full h-11 px-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/50 transition-all cursor-pointer"
-                      >
-                        <option value="">-- Choose Symptom --</option>
-                        {SYMPTOMS.map((s) => (
-                          <option key={s.value} value={s.value}>
-                            {s.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+              <div className="flex flex-col items-center justify-center flex-1 text-center gap-6 animate-fade-in py-8">
+                {/* Brand */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-[var(--color-primary)] to-emerald-600 text-white shadow-glow animate-float">
+                    <Leaf className="h-7 w-7" />
                   </div>
-
-                  <button
-                    onClick={handleDiagnose}
-                    disabled={!selectedCrop || !selectedSymptom || isStreaming}
-                    className="mt-6 w-full h-11 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:bg-[var(--color-muted)] disabled:cursor-not-allowed text-white font-medium rounded-xl text-sm shadow-soft hover:shadow-md transition-all duration-300 flex items-center justify-center gap-2"
-                  >
-                    <Bot className="h-4 w-4" />
-                    Diagnose Plant
-                  </button>
+                  <h2 className="text-2xl font-bold tracking-tight md:text-3xl" style={{ fontFamily: "var(--font-display)" }}>
+                    PlantMD
+                  </h2>
+                  <p className="max-w-sm text-[13px] leading-relaxed text-[var(--color-muted-foreground)]">
+                    Diagnose plant diseases, identify pests, and get treatment plans grounded in agricultural research.
+                  </p>
                 </div>
 
-                {/* Quick Starters Section */}
-                <div className="mt-12 w-full max-w-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-px flex-1 bg-[var(--color-border)]/50"></div>
-                    <span className="text-xs font-semibold text-[var(--color-muted-foreground)] uppercase tracking-wider">
-                      Or Try Quick Starters
+                {/* Input */}
+                <div className="w-full max-w-lg flex flex-col gap-1.5">
+                  <ChatInput
+                    onSend={sendMessage}
+                    disabled={isStreaming}
+                    selectedModel={selectedModel}
+                    setSelectedModel={setSelectedModel}
+                  />
+                  <div className="flex items-center justify-between text-[10px] text-[var(--color-muted-foreground)]/60 px-2">
+                    <span>✨ Select model directly inside the chat bar</span>
+                    <span className="font-semibold text-[var(--color-primary)]/70">Dev by Mahesh</span>
+                  </div>
+                </div>
+
+                {/* Guided Wizard */}
+                <div className="w-full max-w-lg">
+                  <div className="rounded-2xl border border-[var(--color-border)]/50 bg-[var(--color-card)] p-5 shadow-xs">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--color-muted-foreground)] mb-4 flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 text-[var(--color-primary)]" />
+                      Guided Diagnostics
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] mb-1.5">
+                          Crop
+                        </label>
+                        <select
+                          value={selectedCrop}
+                          onChange={(e) => setSelectedCrop(e.target.value)}
+                          className="w-full h-10 px-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[12px] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Choose crop...</option>
+                          {CROPS.map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-[var(--color-muted-foreground)] mb-1.5">
+                          Symptom
+                        </label>
+                        <select
+                          value={selectedSymptom}
+                          onChange={(e) => setSelectedSymptom(e.target.value)}
+                          className="w-full h-10 px-3 bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg text-[12px] text-[var(--color-foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all cursor-pointer appearance-none"
+                        >
+                          <option value="">Choose symptom...</option>
+                          {SYMPTOMS.map((s) => (
+                            <option key={s.value} value={s.value}>{s.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleDiagnose}
+                      disabled={!selectedCrop || !selectedSymptom || isStreaming}
+                      className="mt-4 w-full h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-semibold rounded-lg shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Bot className="h-4 w-4" />
+                      Diagnose
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Starters */}
+                <div className="w-full max-w-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="h-px flex-1 bg-[var(--color-border)]/50" />
+                    <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-[var(--color-muted-foreground)]">
+                      Quick starters
                     </span>
-                    <div className="h-px flex-1 bg-[var(--color-border)]/50"></div>
+                    <div className="h-px flex-1 bg-[var(--color-border)]/50" />
                   </div>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {STARTERS.map((s) => (
                       <button
                         key={s.text}
                         onClick={() => sendMessage(s.text)}
-                        className="group glass flex items-start gap-3 rounded-2xl p-4 text-left text-sm border border-[var(--color-border)]/50 hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/5 hover:-translate-y-0.5 hover:shadow-md transition-all duration-300"
+                        className="group flex items-start gap-2.5 rounded-xl border border-[var(--color-border)]/40 bg-[var(--color-card)] p-3.5 text-left transition-all duration-200 hover:border-[var(--color-primary)]/30 hover:shadow-xs hover:-translate-y-px cursor-pointer"
                       >
-                        <s.icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)] transition-transform duration-300 group-hover:scale-110" />
-                        <span className="text-[var(--color-foreground)]/90 font-medium group-hover:text-[var(--color-foreground)] transition-colors duration-200">
+                        <s.icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-primary)] transition-transform group-hover:scale-110" />
+                        <span className="text-[12px] font-medium leading-snug text-[var(--color-foreground)]">
                           {s.text}
                         </span>
                       </button>
@@ -253,7 +298,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-5 pb-4">
                 {messages.map((m) => (
                   <ChatMessage key={m.id} message={m} userInitials={userInitials} />
                 ))}
@@ -262,8 +307,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Input */}
-        <ChatInput onSend={sendMessage} disabled={isStreaming} />
+        {/* Bottom Input */}
+        {messages.length > 0 && (
+          <div className="relative z-10 border-t border-[var(--color-border)]/40 bg-[var(--color-background)]/80 backdrop-blur-xl px-4 py-3.5 md:px-8">
+            <div className="mx-auto max-w-[720px]">
+              <ChatInput
+                onSend={sendMessage}
+                disabled={isStreaming}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+              />
+              <div className="flex items-center justify-between mt-2 text-[10px] text-[var(--color-muted-foreground)]/60 px-1">
+                <span>AI-generated answers from the knowledge base. Verify with local extensions for production crops.</span>
+                <span className="font-semibold text-[var(--color-primary)]/70 shrink-0 ml-4">Dev by Mahesh</span>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

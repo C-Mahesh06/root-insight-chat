@@ -13,7 +13,7 @@ async def seed_global_encyclopedia():
     user_id = "b1522832-2926-4188-a67e-55a084996c60" # Mahesh's user ID
     supabase = get_supabase()
     
-    # 1. Create document entry
+    # 1. Create/Retrieve document entry
     doc_data = {
         "title": "PlantMD Global & International Plant Disease Encyclopedia",
         "storage_path": "uploads/global_botanical_encyclopedia.pdf",
@@ -23,13 +23,17 @@ async def seed_global_encyclopedia():
         "status": "ready"
     }
     
-    doc_res = supabase.table("documents").insert(doc_data).execute()
-    if not doc_res.data:
-        print("Failed to insert global document metadata")
-        return
-        
-    doc_id = doc_res.data[0]["id"]
-    print(f"Created Global Encyclopedia metadata with ID: {doc_id}")
+    existing = supabase.table("documents").select("id").eq("title", doc_data["title"]).execute()
+    if existing.data:
+        doc_id = existing.data[0]["id"]
+        print(f"Using existing Global Encyclopedia metadata with ID: {doc_id}")
+    else:
+        doc_res = supabase.table("documents").insert(doc_data).execute()
+        if not doc_res.data:
+            print("Failed to insert global document metadata")
+            return
+        doc_id = doc_res.data[0]["id"]
+        print(f"Created Global Encyclopedia metadata with ID: {doc_id}")
     
     # 2. Define 15 Detailed Global Botanical/Agricultural Chapters (Books)
     chunks = [

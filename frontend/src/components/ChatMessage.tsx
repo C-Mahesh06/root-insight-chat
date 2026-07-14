@@ -196,28 +196,48 @@ export function ChatMessage({ message, userInitials }: ChatMessageProps) {
   };
 
   return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`flex gap-3.5 animate-message ${isUser ? "flex-row-reverse" : ""}`}>
       {/* Avatar */}
       <div
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold shadow-soft transition-all ${
           isUser
-            ? "bg-[var(--color-primary)] text-[var(--color-primary-foreground)]"
-            : "bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
+            ? "bg-gradient-to-br from-[var(--color-primary)] to-emerald-600 text-white"
+            : "bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--color-primary)]/20"
         }`}
       >
-        {isUser ? userInitials : <Leaf className="h-4 w-4" />}
+        {isUser ? userInitials : <Leaf className="h-4.5 w-4.5" />}
       </div>
 
       {/* Bubble */}
       <div
-        className={`min-w-0 text-sm ${
+        className={`min-w-0 text-[13.5px] leading-relaxed ${
           isUser
-            ? "max-w-[85%] rounded-3xl rounded-tr-md bg-[var(--color-primary)] text-[var(--color-primary-foreground)] px-4 py-3 shadow-sm"
-            : "flex-1 rounded-3xl bg-[var(--color-card)] border border-[var(--color-border)]/50 p-6 shadow-soft transition-all duration-300 hover:shadow-md"
+            ? "max-w-[80%] rounded-[20px] rounded-tr-none bg-gradient-to-br from-[var(--color-primary)] to-emerald-600 text-white px-5 py-3.5 shadow-sm"
+            : "flex-1 max-w-[90%] rounded-[20px] rounded-tl-none bg-[var(--color-card)] border border-[var(--color-border)]/60 px-6 py-5 shadow-soft transition-all duration-300 hover:shadow-md"
         }`}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <div className="flex flex-col gap-2">
+            <p className="whitespace-pre-wrap">{message.content}</p>
+            {message.images && message.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {message.images.map((imgSrc, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => handleOpenLightbox(imgSrc, `Uploaded image ${idx + 1}`, imgSrc)}
+                    className="relative w-24 h-24 rounded-lg overflow-hidden border border-white/10 shadow-md cursor-zoom-in hover:scale-[1.03] active:scale-95 transition-all duration-200"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imgSrc}
+                      alt={`Upload ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <>
             {message.streaming && !message.content ? (

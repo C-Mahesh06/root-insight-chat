@@ -1,0 +1,33 @@
+Retrieving project…
+Deploying mahesh-ch06s-projects/frontend
+Uploading [--------------------] (0.0B/63B)
+Uploading [====================] (63.0B/63B)
+  Inspect     https://vercel.com/mahesh-ch06s-projects/frontend/2DuKjpxEmWMWgLrBXJjL5krHTvjT
+  Preview     https://frontend-23uz2vanl-mahesh-ch06s-projects.vercel.app
+https://frontend-23uz2vanl-mahesh-ch06s-projects.vercel.appBuilding…
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Retrieving list of deployment files...
+Retrieving list of deployment files...
+Previous build caches not available.
+Downloading 42 deployment files...
+Running "vercel build"
+Vercel CLI 55.0.0
+Installing dependencies...
+added 481 packages in 12s
+233 packages are looking for funding
+run `npm fund` for details
+Detected Next.js version: 16.2.10
+Running "npm run build"
+> frontend@0.1.0 build
+> next build
+Applying modifyConfig from Vercel
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+▲ Next.js 16.2.10 (Turbopack)
+Creating an optimized production build ...
+✓ Compiled successfully in 10.3s
+Running TypeScript ...
+Error: Command "npm run build" exited with 1

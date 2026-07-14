@@ -17,6 +17,7 @@ export interface Message {
   content: string;
   sources?: Source[];
   streaming?: boolean;
+  images?: string[];
 }
 
 export interface Conversation {
@@ -27,11 +28,21 @@ export interface Conversation {
   message_count: number;
 }
 
+const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("my-own-model");
   const abortRef = useRef<AbortController | null>(null);
 
   const loadConversations = useCallback(async () => {
@@ -53,6 +64,7 @@ export function useChat() {
           role: string;
           content: string;
           sources?: Source[];
+          images?: string[];
         }>;
       }>(`/api/chat/conversations/${id}`);
 
@@ -63,6 +75,7 @@ export function useChat() {
           role: m.role as "user" | "assistant",
           content: m.content,
           sources: m.sources,
+          images: m.images,
         }))
       );
     } catch (err) {
@@ -71,13 +84,23 @@ export function useChat() {
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, files?: File[]) => {
       if (isStreaming) return;
+
+      let base64Images: string[] = [];
+      if (files && files.length > 0) {
+        try {
+          base64Images = await Promise.all(files.map(convertToBase64));
+        } catch (e) {
+          console.error("Failed to read image files:", e);
+        }
+      }
 
       const userMsg: Message = {
         id: `tmp-${Date.now()}`,
         role: "user",
         content,
+        images: base64Images.length > 0 ? base64Images : undefined,
       };
 
       const assistantMsg: Message = {
@@ -91,7 +114,12 @@ export function useChat() {
       setIsStreaming(true);
 
       try {
-        const stream = await apiChatStream(content, conversationId);
+        const stream = await apiChatStream(
+          content,
+          conversationId,
+          base64Images.length > 0 ? base64Images : null,
+          selectedModel
+        );
         const reader = stream.getReader();
 
         let fullResponse = "";
@@ -173,7 +201,7 @@ export function useChat() {
         setIsStreaming(false);
       }
     },
-    [conversationId, isStreaming, loadConversations]
+    [conversationId, isStreaming, loadConversations, selectedModel]
   );
 
   const startNewChat = useCallback(() => {
@@ -201,6 +229,8 @@ export function useChat() {
     conversationId,
     conversations,
     isStreaming,
+    selectedModel,
+    setSelectedModel,
     sendMessage,
     loadConversations,
     loadConversation,

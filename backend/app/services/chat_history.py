@@ -3,6 +3,7 @@ Chat history service using Supabase PostgreSQL.
 Stores conversations and messages for persistent memory.
 """
 
+import json
 from datetime import datetime
 from app.middleware.auth import get_supabase
 from app.utils.logger import get_logger
@@ -114,7 +115,20 @@ def get_messages(
     result = supabase.table("messages").select("*").eq(
         "conversation_id", conversation_id
     ).order("created_at", desc=False).limit(limit).execute()
-    return result.data or []
+
+    messages = result.data or []
+    for m in messages:
+        content = m.get("content", "")
+        images = []
+        if content.startswith('{"text":'):
+            try:
+                parsed = json.loads(content)
+                m["content"] = parsed.get("text", "")
+                images = parsed.get("images", [])
+            except Exception:
+                pass
+        m["images"] = images
+    return messages
 
 
 def get_recent_history(
@@ -133,7 +147,24 @@ def get_recent_history(
 
     messages = result.data or []
     messages.reverse()  # Chronological order
-    return messages
+
+    parsed_messages = []
+    for m in messages:
+        content = m.get("content", "")
+        images = []
+        if content.startswith('{"text":'):
+            try:
+                parsed = json.loads(content)
+                content = parsed.get("text", "")
+                images = parsed.get("images", [])
+            except Exception:
+                pass
+        parsed_messages.append({
+            "role": m["role"],
+            "content": content,
+            "images": images
+        })
+    return parsed_messages
 
 
 def rename_conversation(conversation_id: str, user_id: str, title: str) -> bool:

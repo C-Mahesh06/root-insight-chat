@@ -41,3 +41,5 @@ frontend/.env.local
 # Storage/Data
 /qdrant_storage/
 /uploads/
+*.db
+backend/*.db

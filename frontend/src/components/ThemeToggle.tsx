@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 
-export function ThemeToggle() {
+interface ThemeToggleProps {
+  className?: string;
+}
+
+export function ThemeToggle({ className }: ThemeToggleProps) {
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -17,13 +21,15 @@ export function ThemeToggle() {
     localStorage.setItem("plantmd-theme", next ? "dark" : "light");
   }
 
+  const defaultClasses = "flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--color-border)]/60 bg-[var(--color-card)]/50 text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)] transition-all cursor-pointer";
+
   return (
     <button
       onClick={toggle}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-muted-foreground)] transition-colors hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+      className={className || defaultClasses}
       aria-label="Toggle theme"
     >
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {dark ? <Sun className="h-4.5 w-4.5" /> : <Moon className="h-4.5 w-4.5" />}
     </button>
   );
 }

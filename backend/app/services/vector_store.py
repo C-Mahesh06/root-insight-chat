@@ -37,7 +37,7 @@ def get_qdrant_client() -> QdrantClient:
 
 
 def ensure_collection() -> None:
-    """Create the vector collection if it doesn't exist."""
+    """Create the vector collection if it doesn't exist and ensure payload indexing."""
     settings = get_settings()
     client = get_qdrant_client()
     collections = client.get_collections().collections
@@ -54,6 +54,17 @@ def ensure_collection() -> None:
         logger.info("collection_created", name=settings.QDRANT_COLLECTION)
     else:
         logger.info("collection_exists", name=settings.QDRANT_COLLECTION)
+
+    # Ensure document_id keyword payload index is created for chunk browsing
+    try:
+        from qdrant_client.models import PayloadSchemaType
+        client.create_payload_index(
+            collection_name=settings.QDRANT_COLLECTION,
+            field_name="document_id",
+            field_schema=PayloadSchemaType.KEYWORD,
+        )
+    except Exception as e:
+        logger.warning("ensure_payload_index_failed", error=str(e))
 
 
 def upsert_chunks(
@@ -160,3 +171,106 @@ def delete_document_chunks(document_id: str) -> None:
         ),
     )
     logger.info("chunks_deleted", document_id=document_id)
+
+
+def get_all_chunks_for_bm25(max_chunks: int = 5000) -> list[dict]:
+    """
+    Scroll all chunk payloads from Qdrant for BM25 index construction.
+
+    Called once per RAG query to build an in-memory BM25 index.
+    Limited to max_chunks to avoid OOM on very large knowledge bases.
+
+    Args:
+        max_chunks: Maximum number of chunks to load (default 5000).
+
+    Returns:
+        List of chunk dicts with 'id', 'content', and metadata.
+    """
+    settings = get_settings()
+    client = get_qdrant_client()
+
+    chunks: list[dict] = []
+    offset = None
+
+    try:
+        while len(chunks) < max_chunks:
+            results, next_offset = client.scroll(
+                collection_name=settings.QDRANT_COLLECTION,
+                limit=256,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            if not results:
+                break
+
+            for point in results:
+                if point.payload:
+                    chunks.append({
+                        "id": str(point.id),
+                        "content": point.payload.get("content", ""),
+                        "document_id": point.payload.get("document_id", ""),
+                        "document_title": point.payload.get("document_title", ""),
+                        "page_number": point.payload.get("page_number"),
+                        "chunk_index": point.payload.get("chunk_index", 0),
+                        "category": point.payload.get("category", "general"),
+                        "similarity": 0.0,
+                    })
+
+            if next_offset is None:
+                break
+            offset = next_offset
+
+    except Exception as e:
+        logger.warning("bm25_chunk_load_failed", error=str(e))
+
+    logger.info("bm25_chunks_loaded", count=len(chunks))
+    return chunks
+
+
+def get_document_chunks(document_id: str) -> list[dict]:
+    """Scroll all chunk payloads from Qdrant for a specific document_id."""
+    settings = get_settings()
+    client = get_qdrant_client()
+
+    chunks: list[dict] = []
+    offset = None
+
+    try:
+        while True:
+            results, next_offset = client.scroll(
+                collection_name=settings.QDRANT_COLLECTION,
+                limit=100,
+                offset=offset,
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="document_id", match=MatchValue(value=document_id))]
+                ),
+                with_payload=True,
+                with_vectors=False,
+            )
+            if not results:
+                break
+
+            for point in results:
+                if point.payload:
+                    chunks.append({
+                        "id": str(point.id),
+                        "content": point.payload.get("content", ""),
+                        "document_id": point.payload.get("document_id", ""),
+                        "document_title": point.payload.get("document_title", ""),
+                        "page_number": point.payload.get("page_number"),
+                        "chunk_index": point.payload.get("chunk_index", 0),
+                        "category": point.payload.get("category", "general"),
+                    })
+
+            if next_offset is None:
+                break
+            offset = next_offset
+
+    except Exception as e:
+        logger.warning("get_document_chunks_failed", document_id=document_id, error=str(e))
+
+    # Sort chunks by chunk_index to read sequentially
+    chunks.sort(key=lambda x: x.get("chunk_index", 0))
+    return chunks
+

@@ -54,7 +54,12 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
         conversation_id = conv["id"]
 
     # Save user message
-    add_message(conversation_id, "user", request.message)
+    if request.images:
+        saved_content = json.dumps({"text": request.message, "images": request.images})
+    else:
+        saved_content = request.message
+
+    add_message(conversation_id, "user", saved_content)
 
     # Get conversation history for context
     history = get_recent_history(conversation_id, settings.MAX_CONVERSATION_HISTORY)
@@ -70,7 +75,7 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
             # Send conversation_id first
             yield f"data: {json.dumps({'type': 'conversation_id', 'data': conversation_id})}\n\n"
 
-            async for event in rag_stream(request.message, history):
+            async for event in rag_stream(request.message, history, request.images, request.model, user_id):
                 if event["type"] == "sources":
                     sources = event["data"]
                     yield f"data: {json.dumps({'type': 'sources', 'data': sources})}\n\n"
@@ -81,6 +86,14 @@ async def chat(request: ChatRequest, user: dict = Depends(get_current_user)):
 
             # Save assistant response
             add_message(conversation_id, "assistant", full_response, sources)
+
+            # Asynchronously extract new facts for episodic long term memory
+            try:
+                from app.services.memory import extract_and_save_facts
+                import asyncio
+                asyncio.create_task(extract_and_save_facts(user_id, request.message, full_response))
+            except Exception as mem_err:
+                logger.error("chat_memory_extraction_trigger_failed", error=str(mem_err))
 
             yield f"data: {json.dumps({'type': 'done', 'data': {'conversation_id': conversation_id}})}\n\n"
 
