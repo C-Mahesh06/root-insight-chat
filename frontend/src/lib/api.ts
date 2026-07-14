@@ -22,6 +22,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "69420",
   };
 
   if (session?.access_token) {
@@ -58,7 +59,9 @@ export async function apiUpload<T = unknown>(
     data: { session },
   } = await supabase.auth.getSession();
 
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    "ngrok-skip-browser-warning": "69420",
+  };
   if (session?.access_token) {
     headers["Authorization"] = `Bearer ${session.access_token}`;
   }
