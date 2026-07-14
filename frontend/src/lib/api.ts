@@ -23,6 +23,7 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "ngrok-skip-browser-warning": "69420",
+    "bypass-tunnel-reminder": "true",
   };
 
   if (session?.access_token) {
@@ -61,6 +62,7 @@ export async function apiUpload<T = unknown>(
 
   const headers: Record<string, string> = {
     "ngrok-skip-browser-warning": "69420",
+    "bypass-tunnel-reminder": "true",
   };
   if (session?.access_token) {
     headers["Authorization"] = `Bearer ${session.access_token}`;
