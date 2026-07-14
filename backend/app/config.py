@@ -35,9 +35,9 @@ class Settings(BaseSettings):
     QDRANT_COLLECTION: str = "plant_disease_docs"
 
     # --- Embedding ---
-    # BAAI/bge-large-en-v1.5 = best free open-source embedding model
-    EMBEDDING_MODEL: str = "BAAI/bge-large-en-v1.5"
-    EMBEDDING_DIMENSION: int = 1024
+    # BAAI/bge-small-en-v1.5 = best free lightweight embedding model (fits in 512MB RAM on Render)
+    EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
+    EMBEDDING_DIMENSION: int = 384
 
     # --- Reranker ---
     # cross-encoder/ms-marco-MiniLM-L-6-v2 = best free cross-encoder

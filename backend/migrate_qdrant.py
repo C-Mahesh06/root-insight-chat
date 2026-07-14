@@ -39,17 +39,17 @@ def migrate():
         info = client.get_collection(collection_name=collection_name)
         config = info.config.params.vectors
         current_dim = getattr(config, "size", None)
-        if current_dim != 1024:
-            print(f"Deleting collection: {collection_name} (current dimension: {current_dim})...")
+        if current_dim != settings.EMBEDDING_DIMENSION:
+            print(f"Deleting collection: {collection_name} (current dimension: {current_dim}, expected: {settings.EMBEDDING_DIMENSION})...")
             client.delete_collection(collection_name=collection_name)
             exists = False
 
     if not exists:
-        print(f"Creating collection: {collection_name} with 1024 dimensions...")
+        print(f"Creating collection: {collection_name} with {settings.EMBEDDING_DIMENSION} dimensions...")
         client.create_collection(
             collection_name=collection_name,
             vectors_config=VectorParams(
-                size=1024,
+                size=settings.EMBEDDING_DIMENSION,
                 distance=Distance.COSINE,
             ),
         )
