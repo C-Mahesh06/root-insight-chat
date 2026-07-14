@@ -9,17 +9,40 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Get initial session — handle stale refresh tokens gracefully
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) {
+          // Refresh token is invalid/expired — clear the stale session
+          console.warn("Session refresh failed, signing out:", error.message);
+          supabase.auth.signOut();
+          setUser(null);
+        } else {
+          setUser(session?.user ?? null);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        // Network or unexpected error — treat as signed out
+        setUser(null);
+        setLoading(false);
+      });
 
-    // Listen for auth changes
+    // Listen for auth changes (including TOKEN_REFRESHED failures)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED" && !session) {
+        // Token refresh failed — force sign out
+        console.warn("Token refresh failed, forcing sign out");
+        supabase.auth.signOut();
+        setUser(null);
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+      } else {
+        setUser(session?.user ?? null);
+      }
       setLoading(false);
     });
 

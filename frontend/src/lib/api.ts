@@ -13,12 +13,40 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Redirect to /auth when the session is invalid.
+ * Clears the stale Supabase session first.
+ */
+async function handleAuthFailure(): Promise<void> {
+  try {
+    const { supabase } = await import("./supabase");
+    await supabase.auth.signOut();
+  } catch {
+    // Ignore sign-out errors
+  }
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
+    window.location.href = "/auth";
+  }
+}
+
 async function getAuthHeaders(): Promise<Record<string, string>> {
   // Import dynamically to avoid SSR issues
   const { supabase } = await import("./supabase");
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+
+  let session = null;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      // Stale refresh token — force re-login
+      console.warn("Auth session expired:", error.message);
+      await handleAuthFailure();
+      return { "Content-Type": "application/json" };
+    }
+    session = data.session;
+  } catch {
+    // Network error fetching session
+    session = null;
+  }
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -43,6 +71,12 @@ export async function apiFetch<T = unknown>(
     headers: { ...headers, ...options.headers },
   });
 
+  if (res.status === 401 || res.status === 403) {
+    // Backend rejected the token — session is stale, force re-login
+    await handleAuthFailure();
+    throw new ApiError("Session expired. Please sign in again.", res.status);
+  }
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     throw new ApiError(body.detail || "API error", res.status);
@@ -56,9 +90,19 @@ export async function apiUpload<T = unknown>(
   formData: FormData
 ): Promise<T> {
   const { supabase } = await import("./supabase");
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+
+  let session = null;
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      await handleAuthFailure();
+      throw new ApiError("Session expired. Please sign in again.", 401);
+    }
+    session = data.session;
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    session = null;
+  }
 
   const headers: Record<string, string> = {
     "ngrok-skip-browser-warning": "69420",
@@ -73,6 +117,11 @@ export async function apiUpload<T = unknown>(
     headers,
     body: formData,
   });
+
+  if (res.status === 401 || res.status === 403) {
+    await handleAuthFailure();
+    throw new ApiError("Session expired. Please sign in again.", res.status);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
@@ -104,6 +153,11 @@ export async function apiChatStream(
       model: model || null,
     }),
   });
+
+  if (res.status === 401 || res.status === 403) {
+    await handleAuthFailure();
+    throw new ApiError("Session expired. Please sign in again.", res.status);
+  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
