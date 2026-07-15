@@ -23,9 +23,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("starting_up", app=settings.APP_NAME, version=settings.APP_VERSION)
 
-    # Load only the embedding model eagerly at startup.
-    # The reranker lazy-loads on first request to avoid simultaneous
-    # model loading that spikes RAM over 512MB on Render's free tier.
+    # Step 1: Load embedding model eagerly (small, fast ~2s).
     try:
         from app.services.embedding import load_embedding_model
         from app.services.vector_store import ensure_collection
@@ -36,7 +34,18 @@ async def lifespan(app: FastAPI):
         logger.info("ml_models_loaded")
     except Exception as e:
         logger.error("startup_error", error=str(e))
-        # Don't crash — models will lazy-load on first request
+
+    # Step 2: Warm up reranker in background thread so it's ready
+    # for the first request without blocking startup or causing OOM spike.
+    import threading
+    def _warmup_reranker():
+        try:
+            from app.services.reranker import load_reranker
+            load_reranker()
+            logger.info("reranker_warmed_up")
+        except Exception as e:
+            logger.warning("reranker_warmup_failed", error=str(e))
+    threading.Thread(target=_warmup_reranker, daemon=True).start()
 
     yield
 
