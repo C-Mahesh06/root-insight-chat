@@ -14,8 +14,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app
 COPY . .
 
-# Pre-download models at build time (optional, speeds up startup)
-# RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-large-en-v1.5'); SentenceTransformer('BAAI/bge-reranker-base')"
+# Pre-download models at build time — eliminates cold-start memory spike
+# and avoids downloading during the first live request.
+RUN python -c "
+from sentence_transformers import SentenceTransformer, CrossEncoder
+print('Downloading embedding model...')
+SentenceTransformer('BAAI/bge-small-en-v1.5')
+print('Downloading reranker model...')
+CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2', max_length=512)
+print('Models pre-baked successfully.')
+"
 
 EXPOSE 8000
 

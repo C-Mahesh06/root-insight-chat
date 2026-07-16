@@ -12,14 +12,19 @@ from app.utils.logger import get_logger
 
 logger = get_logger("llm")
 
-_llm: ChatOpenAI | None = None
+_llm_cache: dict[str, ChatOpenAI] = {}
 
 
 def get_llm(model_override: str | None = None) -> ChatOpenAI:
-    """Get or create the LangChain LLM instance with optional model override."""
+    """Get or create a cached LangChain LLM instance for the given model."""
     settings = get_settings()
     model = model_override or settings.OPENAI_MODEL
-    return ChatOpenAI(
+
+    if model in _llm_cache:
+        return _llm_cache[model]
+
+    logger.info("llm_client_creating", model=model)
+    llm = ChatOpenAI(
         model=model,
         api_key=settings.OPENAI_API_KEY,
         base_url=settings.OPENAI_BASE_URL,
@@ -27,6 +32,8 @@ def get_llm(model_override: str | None = None) -> ChatOpenAI:
         max_tokens=settings.LLM_MAX_TOKENS,
         streaming=True,
     )
+    _llm_cache[model] = llm
+    return llm
 
 
 def build_messages(

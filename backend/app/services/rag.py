@@ -29,7 +29,7 @@ from app.config import get_settings
 from app.services.embedding import embed_query
 from app.services.vector_store import search_similar, get_all_chunks_for_bm25
 from app.services.reranker import rerank_chunks
-from app.services.bm25_search import BM25Index, reciprocal_rank_fusion
+from app.services.bm25_search import get_or_build_bm25_index, reciprocal_rank_fusion
 from app.services.compression import compress_chunks
 from app.services.semantic_cache import cache_lookup, cache_store
 from app.services.llm import build_messages, stream_completion, generate_completion
@@ -203,8 +203,9 @@ async def hybrid_retrieve(
     try:
         all_chunks = get_all_chunks_for_bm25()
         if all_chunks:
-            index = BM25Index(all_chunks)
-            bm25_candidates = index.search(primary_query, top_k=settings.RAG_BM25_TOP_K)
+            index = get_or_build_bm25_index(all_chunks)
+            if index:
+                bm25_candidates = index.search(primary_query, top_k=settings.RAG_BM25_TOP_K)
     except Exception as e:
         logger.warning("bm25_retrieval_failed", error=str(e))
 

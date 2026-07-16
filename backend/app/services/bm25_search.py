@@ -13,11 +13,60 @@ Cost: $0 — pure Python, no API calls, no GPU required.
 
 import re
 import math
+import time
+import threading
 from collections import Counter
+from dataclasses import dataclass, field
+from typing import Optional
 
 from app.utils.logger import get_logger
 
 logger = get_logger("bm25")
+
+# ─────────────────────────────────────────────────────────────
+# BM25 Index Singleton Cache
+# ─────────────────────────────────────────────────────────────
+
+_BM25_CACHE_TTL_SECONDS = 600  # Rebuild at most once every 10 minutes
+
+@dataclass
+class _BM25Cache:
+    index: Optional["BM25Index"] = None
+    built_at: float = 0.0
+    lock: threading.Lock = field(default_factory=threading.Lock)
+
+_bm25_cache = _BM25Cache()
+
+
+def get_or_build_bm25_index(chunks: list[dict]) -> Optional["BM25Index"]:
+    """
+    Return the cached BM25Index if it was built within the TTL window.
+    Otherwise rebuild it from `chunks` and cache the new instance.
+
+    This avoids rebuilding the full BM25 index (60-80 MB) on every RAG request.
+    """
+    if not chunks:
+        return None
+
+    now = time.monotonic()
+    with _bm25_cache.lock:
+        age = now - _bm25_cache.built_at
+        if _bm25_cache.index is not None and age < _BM25_CACHE_TTL_SECONDS:
+            logger.debug("bm25_cache_hit", age_seconds=round(age, 1))
+            return _bm25_cache.index
+
+        logger.info("bm25_index_rebuilding", chunks=len(chunks), reason="cache_miss_or_expired")
+        _bm25_cache.index = BM25Index(chunks)
+        _bm25_cache.built_at = time.monotonic()
+        return _bm25_cache.index
+
+
+def invalidate_bm25_cache() -> None:
+    """Force the next request to rebuild the BM25 index. Call after ingesting new documents."""
+    with _bm25_cache.lock:
+        _bm25_cache.index = None
+        _bm25_cache.built_at = 0.0
+    logger.info("bm25_cache_invalidated")
 
 # BM25 hyperparameters (TREC-tested defaults)
 K1 = 1.5   # Term frequency saturation

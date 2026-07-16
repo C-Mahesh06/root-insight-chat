@@ -4,7 +4,9 @@ Tracks LLM time-to-first-token, cache hits, throughput, and API request statisti
 """
 
 import time
+import re
 import threading
+from collections import deque
 from typing import Dict
 
 # Thread lock for safe concurrent updates
@@ -15,16 +17,32 @@ _api_request_counts: Dict[str, int] = {}       # Key: "method:path:status" -> co
 _api_request_durations: Dict[str, float] = {}   # Key: "method:path" -> sum of durations
 _api_request_times: Dict[str, int] = {}         # Key: "method:path" -> count for avg duration
 
-_llm_first_token_times: list[float] = []        # List of time_to_first_token values
+# Bounded rolling window (maxlen prevents unbounded memory growth)
+_llm_first_token_times: deque[float] = deque(maxlen=1000)
 _llm_tokens_generated = 0
 _llm_generation_durations = 0.0
 
 _cache_hits = 0
 _cache_misses = 0
 
+# Regex to normalize dynamic path segments so unique IDs don't grow the dict unboundedly
+_PATH_NORMALIZE_RE = re.compile(
+    r"(?<=/)("                      # after a slash:
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"  # UUID
+    r"|[0-9]+"                      # numeric ID
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _normalize_path(path: str) -> str:
+    """Replace UUID and numeric path segments with placeholders."""
+    return _PATH_NORMALIZE_RE.sub("{id}", path)
+
 
 def track_api_request(method: str, path: str, status_code: int, duration: float):
-    """Record API request count and duration."""
+    """Record API request count and duration (path is normalized to avoid unbounded dict growth)."""
+    path = _normalize_path(path)
     key_count = f"{method}:{path}:{status_code}"
     key_dur = f"{method}:{path}"
     with _lock:

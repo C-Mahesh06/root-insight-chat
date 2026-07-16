@@ -112,6 +112,14 @@ def upsert_chunks(
         )
 
     logger.info("chunks_upserted", document_id=document_id, count=len(points))
+
+    # Invalidate the BM25 index cache so the next query picks up the new chunks
+    try:
+        from app.services.bm25_search import invalidate_bm25_cache
+        invalidate_bm25_cache()
+    except Exception as e:
+        logger.warning("bm25_cache_invalidation_failed", error=str(e))
+
     return len(points)
 
 

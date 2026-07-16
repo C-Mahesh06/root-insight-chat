@@ -1,6 +1,6 @@
 """
-Embedding service using BAAI/bge-large-en-v1.5 (1024-dim).
-- Best free open-source embedding model as of 2026
+Embedding service using BAAI/bge-small-en-v1.5 (384-dim).
+- Best free lightweight embedding model — fits comfortably in 512 MB RAM
 - Uses instruction prefix for queries (BGE best practice)
 - Loads once at startup; thread-safe for concurrent requests
 """
@@ -28,10 +28,13 @@ def load_embedding_model() -> SentenceTransformer:
     settings = get_settings()
     logger.info("loading_embedding_model", model=settings.EMBEDDING_MODEL)
     _model = SentenceTransformer(settings.EMBEDDING_MODEL)
+    # Log actual dimension so it's visible in Render logs on every deploy
+    actual_dim = _model.get_sentence_embedding_dimension()
     logger.info(
         "embedding_model_loaded",
         model=settings.EMBEDDING_MODEL,
-        dimension=settings.EMBEDDING_DIMENSION,
+        actual_dimension=actual_dim,
+        configured_dimension=settings.EMBEDDING_DIMENSION,
     )
     return _model
 
